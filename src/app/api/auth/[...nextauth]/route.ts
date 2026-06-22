@@ -26,9 +26,6 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  pages: {
-    signIn: "/login",
-  },
 };
 
 // Decodifica el payload de un JWT sin verificar firma (solo lectura local)

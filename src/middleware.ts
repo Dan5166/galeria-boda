@@ -12,11 +12,7 @@ export default withAuth(
 
     return NextResponse.next();
   },
-  {
-    pages: {
-      signIn: "/login",
-    },
-  },
+  {},
 );
 
 export const config = {
