@@ -15,6 +15,17 @@ interface Foto {
 
 const POR_PAGINA = 12;
 
+async function descargarArchivo(url: string, nombre: string) {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = nombre;
+  a.click();
+  URL.revokeObjectURL(objectUrl);
+}
+
 export default function Galeria() {
   const [fotos, setFotos] = useState<Foto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +33,9 @@ export default function Galeria() {
   const [fotoModal, setFotoModal] = useState<Foto | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [modoSeleccion, setModoSeleccion] = useState(false);
+  const [seleccionadas, setSeleccionadas] = useState<Set<string>>(new Set());
+  const [descargando, setDescargando] = useState(false);
 
   function cargarFotos() {
     setLoading(true);
@@ -49,7 +63,35 @@ export default function Galeria() {
     }, 1000);
   }
 
-  useEffect(() => () => { if (cooldownRef.current) clearInterval(cooldownRef.current); }, []);
+  useEffect(
+    () => () => {
+      if (cooldownRef.current) clearInterval(cooldownRef.current);
+    },
+    [],
+  );
+
+  function toggleSeleccion(id: string) {
+    setSeleccionadas((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function salirModoSeleccion() {
+    setModoSeleccion(false);
+    setSeleccionadas(new Set());
+  }
+
+  async function descargarSeleccionadas() {
+    setDescargando(true);
+    const elegidas = fotos.filter((f) => seleccionadas.has(f.id));
+    for (const foto of elegidas) {
+      const ext = foto.tipo === "video" ? "mp4" : "jpg";
+      await descargarArchivo(foto.viewUrl, `boda-${foto.id}.${ext}`);
+    }
+    setDescargando(false);
+  }
 
   const totalPaginas = Math.max(1, Math.ceil(fotos.length / POR_PAGINA));
   const paginaActual = Math.min(pagina, totalPaginas);
@@ -80,7 +122,8 @@ export default function Galeria() {
   return (
     <div className="px-6 py-10">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8 flex items-center justify-between">
+        {/* Header */}
+        <div className="mb-8 flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               Galería de la boda
@@ -90,57 +133,108 @@ export default function Galeria() {
               {fotos.length !== 1 ? "s" : ""}
             </p>
           </div>
-          <button
-            onClick={handleRefresh}
-            disabled={cooldown > 0}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-warm-border text-sm text-muted-text hover:bg-accent-light transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={loading ? "animate-spin" : ""}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-            {cooldown > 0 ? `${cooldown}s` : "Actualizar"}
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {fotosPagina.map((foto) => (
+          <div className="flex items-center gap-2">
+            {modoSeleccion ? (
+              <button
+                onClick={salirModoSeleccion}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-warm-border text-sm text-muted-text hover:bg-accent-light transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                Cancelar
+              </button>
+            ) : (
+              <button
+                onClick={() => setModoSeleccion(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-warm-border text-sm text-muted-text hover:bg-accent-light transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 11 12 14 22 4"/></svg>
+                Seleccionar
+              </button>
+            )}
             <button
-              key={foto.id}
-              onClick={() => setFotoModal(foto)}
-              className="group aspect-square bg-accent-light rounded-xl overflow-hidden relative"
+              onClick={handleRefresh}
+              disabled={cooldown > 0}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-warm-border text-sm text-muted-text hover:bg-accent-light transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {foto.tipo === "video" ? (
-                <video
-                  src={foto.viewUrl}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  preload="metadata"
-                  muted
-                />
-              ) : (
-                <img
-                  src={foto.thumbUrl ?? foto.viewUrl}
-                  alt="Foto de la boda"
-                  loading="lazy"
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-              )}
-              {foto.tipo === "video" && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-sm">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="white"
-                    >
-                      <polygon points="5 3 19 12 5 21 5 3" />
-                    </svg>
-                  </div>
-                </div>
-              )}
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={loading ? "animate-spin" : ""}><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              {cooldown > 0 ? `${cooldown}s` : "Actualizar"}
             </button>
-          ))}
+          </div>
         </div>
 
+        {/* Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {fotosPagina.map((foto) => {
+            const estaSeleccionada = seleccionadas.has(foto.id);
+            return (
+              <button
+                key={foto.id}
+                onClick={() =>
+                  modoSeleccion ? toggleSeleccion(foto.id) : setFotoModal(foto)
+                }
+                className={`group aspect-square bg-accent-light rounded-xl overflow-hidden relative transition-all ${
+                  estaSeleccionada ? "ring-2 ring-accent ring-offset-2" : ""
+                }`}
+              >
+                {foto.tipo === "video" ? (
+                  <video
+                    src={foto.viewUrl}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    preload="metadata"
+                    muted
+                  />
+                ) : (
+                  <img
+                    src={foto.thumbUrl ?? foto.viewUrl}
+                    alt="Foto de la boda"
+                    loading="lazy"
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                )}
+                {foto.tipo === "video" && !modoSeleccion && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-sm">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    </div>
+                  </div>
+                )}
+                {modoSeleccion && (
+                  <div className={`absolute top-2 right-2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+                    estaSeleccionada
+                      ? "bg-accent border-accent"
+                      : "bg-white/70 border-white"
+                  }`}>
+                    {estaSeleccionada && (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    )}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Barra de descarga múltiple */}
+        {modoSeleccion && seleccionadas.size > 0 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
+            <button
+              onClick={descargarSeleccionadas}
+              disabled={descargando}
+              className="flex items-center gap-2 px-6 py-3 rounded-full bg-accent text-white font-medium text-sm shadow-lg hover:opacity-90 transition-opacity disabled:opacity-60"
+            >
+              {descargando ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              )}
+              {descargando
+                ? "Descargando..."
+                : `Descargar ${seleccionadas.size} archivo${seleccionadas.size !== 1 ? "s" : ""}`}
+            </button>
+          </div>
+        )}
+
+        {/* Paginación */}
         {totalPaginas > 1 && (
           <div className="flex items-center justify-center gap-3 mt-10">
             <button
@@ -166,6 +260,7 @@ export default function Galeria() {
         )}
       </div>
 
+      {/* Modal */}
       {fotoModal && (
         <div
           className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
@@ -189,7 +284,17 @@ export default function Galeria() {
                 className="w-full max-h-[80vh] object-contain"
               />
             )}
-            <div className="px-4 py-3 flex justify-end border-t border-warm-border">
+            <div className="px-4 py-3 flex justify-between items-center border-t border-warm-border">
+              <button
+                onClick={() => {
+                  const ext = fotoModal.tipo === "video" ? "mp4" : "jpg";
+                  descargarArchivo(fotoModal.viewUrl, `boda-${fotoModal.id}.${ext}`);
+                }}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-accent text-white text-sm hover:opacity-90 transition-opacity"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Descargar
+              </button>
               <button
                 onClick={() => setFotoModal(null)}
                 className="flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-warm-border text-sm text-muted-text hover:bg-accent-light transition-colors"
