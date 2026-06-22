@@ -15,15 +15,14 @@ interface Foto {
 
 const POR_PAGINA = 12;
 
-async function descargarArchivo(url: string, nombre: string) {
-  const res = await fetch(url);
-  const blob = await res.blob();
-  const objectUrl = URL.createObjectURL(blob);
+function descargarArchivo(id: string, tipo: string) {
+  const ext = tipo === "video" ? "mp4" : "jpg";
   const a = document.createElement("a");
-  a.href = objectUrl;
-  a.download = nombre;
+  a.href = `/api/download/${id}`;
+  a.download = `boda-${id}.${ext}`;
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(objectUrl);
+  document.body.removeChild(a);
 }
 
 export default function Galeria() {
@@ -35,7 +34,6 @@ export default function Galeria() {
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [modoSeleccion, setModoSeleccion] = useState(false);
   const [seleccionadas, setSeleccionadas] = useState<Set<string>>(new Set());
-  const [descargando, setDescargando] = useState(false);
 
   function cargarFotos() {
     setLoading(true);
@@ -83,14 +81,11 @@ export default function Galeria() {
     setSeleccionadas(new Set());
   }
 
-  async function descargarSeleccionadas() {
-    setDescargando(true);
+  function descargarSeleccionadas() {
     const elegidas = fotos.filter((f) => seleccionadas.has(f.id));
-    for (const foto of elegidas) {
-      const ext = foto.tipo === "video" ? "mp4" : "jpg";
-      await descargarArchivo(foto.viewUrl, `boda-${foto.id}.${ext}`);
-    }
-    setDescargando(false);
+    elegidas.forEach((foto, i) => {
+      setTimeout(() => descargarArchivo(foto.id, foto.tipo), i * 300);
+    });
   }
 
   const totalPaginas = Math.max(1, Math.ceil(fotos.length / POR_PAGINA));
@@ -219,17 +214,10 @@ export default function Galeria() {
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
             <button
               onClick={descargarSeleccionadas}
-              disabled={descargando}
-              className="flex items-center gap-2 px-6 py-3 rounded-full bg-accent text-white font-medium text-sm shadow-lg hover:opacity-90 transition-opacity disabled:opacity-60"
+              className="flex items-center gap-2 px-6 py-3 rounded-full bg-accent text-white font-medium text-sm shadow-lg hover:opacity-90 transition-opacity"
             >
-              {descargando ? (
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              )}
-              {descargando
-                ? "Descargando..."
-                : `Descargar ${seleccionadas.size} archivo${seleccionadas.size !== 1 ? "s" : ""}`}
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Descargar {seleccionadas.size} archivo{seleccionadas.size !== 1 ? "s" : ""}
             </button>
           </div>
         )}
@@ -286,10 +274,7 @@ export default function Galeria() {
             )}
             <div className="px-4 py-3 flex justify-between items-center border-t border-warm-border">
               <button
-                onClick={() => {
-                  const ext = fotoModal.tipo === "video" ? "mp4" : "jpg";
-                  descargarArchivo(fotoModal.viewUrl, `boda-${fotoModal.id}.${ext}`);
-                }}
+                onClick={() => descargarArchivo(fotoModal.id, fotoModal.tipo)}
                 className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-accent text-white text-sm hover:opacity-90 transition-opacity"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
