@@ -131,35 +131,73 @@ export default function UploadForm() {
   const totalOk = cola.filter((i) => i.estado === "ok").length;
 
   return (
-    <div className="flex flex-col gap-4 max-w-lg">
-      <input
-        type="file"
-        accept="image/*,video/*"
-        multiple
-        onChange={(e) => handleSeleccion(e.target.files)}
-      />
+    <div className="flex flex-col gap-5">
+      <label
+        htmlFor="file-input"
+        className="flex flex-col items-center justify-center gap-3 w-full py-12 border-2 border-dashed border-warm-border rounded-2xl cursor-pointer hover:bg-accent-light transition-colors text-muted-text"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="32"
+          height="32"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="text-accent"
+        >
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" y1="3" x2="12" y2="15" />
+        </svg>
+        <span className="text-sm font-medium text-foreground">
+          Seleccionar fotos y videos
+        </span>
+        <span className="text-xs">o arrastra y suelta aquí</span>
+        <input
+          id="file-input"
+          type="file"
+          accept="image/*,video/*"
+          multiple
+          className="sr-only"
+          onChange={(e) => handleSeleccion(e.target.files)}
+        />
+      </label>
 
       {cola.length > 0 && (
         <>
-          <ul className="flex flex-col gap-2 max-h-80 overflow-y-auto border rounded p-2">
+          <ul className="flex flex-col gap-1 max-h-72 overflow-y-auto border border-warm-border rounded-xl p-3">
             {cola.map((item) => (
               <li
                 key={item.id}
-                className="flex items-center justify-between gap-2 text-sm"
+                className="flex items-center justify-between gap-2 text-sm py-1.5 px-1"
               >
-                <span className="truncate flex-1">{item.file.name}</span>
+                <span className="truncate flex-1 text-foreground">
+                  {item.file.name}
+                </span>
 
                 {item.estado === "esperando" && (
-                  <span className="text-gray-400">En cola</span>
+                  <span className="text-xs text-muted-text shrink-0">
+                    En cola
+                  </span>
                 )}
                 {item.estado === "subiendo" && (
-                  <span className="text-blue-500">Subiendo...</span>
+                  <span className="text-xs text-accent shrink-0">
+                    Subiendo...
+                  </span>
                 )}
                 {item.estado === "ok" && (
-                  <span className="text-green-600">✓ Listo</span>
+                  <span className="text-xs text-green-600 shrink-0">
+                    Listo
+                  </span>
                 )}
                 {item.estado === "error" && (
-                  <span className="text-red-600" title={item.error}>
+                  <span
+                    className="text-xs text-red-500 shrink-0"
+                    title={item.error}
+                  >
                     Error
                   </span>
                 )}
@@ -167,7 +205,7 @@ export default function UploadForm() {
                 {item.estado !== "subiendo" && (
                   <button
                     onClick={() => quitarDeCola(item.id)}
-                    className="text-gray-400 hover:text-black"
+                    className="text-muted-text hover:text-foreground transition-colors shrink-0 ml-1"
                   >
                     ✕
                   </button>
@@ -179,16 +217,25 @@ export default function UploadForm() {
           <button
             onClick={subirTodo}
             disabled={subiendoTodo || totalPendientes === 0}
-            className="px-4 py-2 bg-black text-white rounded disabled:opacity-50"
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-full bg-accent text-white font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
           >
-            {subiendoTodo
-              ? "Subiendo..."
-              : `Subir ${totalPendientes} archivo(s)`}
+            {subiendoTodo ? (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                Subiendo...
+              </>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Subir {totalPendientes} archivo{totalPendientes !== 1 ? "s" : ""}
+              </>
+            )}
           </button>
 
           {totalOk > 0 && (
-            <p className="text-green-600 text-sm">
-              {totalOk} archivo(s) subido(s). Quedarán pendientes de aprobación.
+            <p className="text-sm text-center text-muted-text">
+              {totalOk} archivo{totalOk !== 1 ? "s" : ""} subido
+              {totalOk !== 1 ? "s" : ""}. Quedará pendiente de aprobación.
             </p>
           )}
         </>
